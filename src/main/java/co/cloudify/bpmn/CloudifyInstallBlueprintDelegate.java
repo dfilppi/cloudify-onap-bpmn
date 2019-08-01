@@ -26,14 +26,15 @@ import org.onap.so.cloudify.client.ExecutionV31;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class CloudifyInstallBlueprintAction implements JavaDelegate {
-	private static Logger log = LoggerFactory.getLogger(CloudifyInstallBlueprintAction.class);
+public class CloudifyInstallBlueprintDelegate extends AbstractJavaDelegate {
+	private static Logger log = LoggerFactory.getLogger(CloudifyInstallBlueprintDelegate.class);
 
 	// limitation: only archives with blueprint.yaml will work
 	private final static String MAIN_YAML = "blueprint.yaml";
+	private final static String INSTALL_WF = "install";
 
 	public static void main(String[] args) throws Exception {
-		CloudifyInstallBlueprintAction a = new CloudifyInstallBlueprintAction();
+		CloudifyInstallBlueprintDelegate a = new CloudifyInstallBlueprintDelegate();
 		a.execute(null);
 	}
 
@@ -60,17 +61,13 @@ public class CloudifyInstallBlueprintAction implements JavaDelegate {
 
 		// Run install workflow
 		try {
-			runInstallWorkflow(execution, client, did);
+			runWorkflow(INSTALL_WF, execution, client, did);
 		} catch (Exception e) {
 			log.error("Cloudify install workflow failed: " + e.getMessage());
 			throw e;
 		}
 	}
 
-	private void runInstallWorkflow(DelegateExecution execution, APIV31Impl client, String did) {
-		ExecutionV31 exe = client.runExecution("install", "test", new HashMap<String,String>(), false, false, false, null, 60, false);
-		//TODO: check result
-	}
 
 	// TODO: deployment and blueprint names must be derived from request
 	private String createDeployment(DelegateExecution execution, APIV31Impl client, String bid) {
@@ -132,17 +129,6 @@ public class CloudifyInstallBlueprintAction implements JavaDelegate {
 				+ "    type: cloudify.nodes.Root\n";
 
 		return blueprint;
-	}
-
-	// TODO: Implement with cloud site info
-	private Map<String, String> getCredentials(DelegateExecution execution) {
-		Map<String, String> creds = new HashMap<>();
-
-		creds.put("tenant", "default_tenant");
-		creds.put("username", "admin");
-		creds.put("password", "admin");
-		creds.put("url", "http://localhost:80");
-		return creds;
 	}
 
 	/**
