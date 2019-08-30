@@ -13,13 +13,10 @@ public class CloudifyUninstallBlueprintDelegate extends AbstractJavaDelegate {
 	// limitation: only archives with blueprint.yaml will work
 	private final static String UNINSTALL_WF = "uninstall";
 
-	public static void main(String[] args) throws Exception {
-		CloudifyUninstallBlueprintDelegate a = new CloudifyUninstallBlueprintDelegate();
-		a.execute(null);
-	}
-
 	public void execute(DelegateExecution execution) throws Exception {
-		APIV31Impl client = getCloudifyClient(execution);
+		checkInputs(execution);
+		Map<String,String> credentials = (Map<String,String>)execution.getVariable(INP_CREDENTIALS_KEY);		
+		APIV31Impl client = getCloudifyClient(credentials);
 
 		String did = getDeploymentId(execution);
 		
@@ -32,14 +29,40 @@ public class CloudifyUninstallBlueprintDelegate extends AbstractJavaDelegate {
 		}
 	}
 
+	/******************************************************************
+	 * PRIVATE METHODS
+	 ******************************************************************/
 
-	private APIV31Impl getCloudifyClient(DelegateExecution execution) {
-		Map<String, String> creds = getCredentials(execution);
-		APIV31Impl client = APIV31Impl.create(creds.get("tenant"), creds.get("username"), creds.get("password"),
-				creds.get("url"));
-		return client;
+	private void checkInputs(DelegateExecution execution) throws Exception{
+		StringBuilder sb = new StringBuilder();
+		
+		if(!execution.hasVariable(INP_CREDENTIALS_KEY)) {
+			sb.append("required input not supplied: "+INP_CREDENTIALS_KEY);
+		}
+		else {
+			Map<String,String> creds = (Map<String,String>)execution.getVariable(INP_CREDENTIALS_KEY);
+			if(!creds.containsKey("url")) {
+				sb.append("required credentials entry not supplied: url");
+			}
+			if(!creds.containsKey("username")) {
+				sb.append("required credentials entry not supplied: username");
+			}
+			if(!creds.containsKey("password")) {
+				sb.append("required credentials entry not supplied: password");
+			}
+			if(!creds.containsKey("tenant")) {
+				sb.append("required credentials entry not supplied: tenant");
+			}
+		}
+		if(!execution.hasVariable(INP_CREDENTIALS_KEY)) {
+			sb.append("required input not supplied: "+INP_CREDENTIALS_KEY);
+		}
+		if(!execution.hasVariable(INP_BLUEPRINT_NAME_KEY)) {
+			sb.append("required input not supplied: "+INP_BLUEPRINT_NAME_KEY);
+		}
+
+		if(sb.length()>0) {
+			throw new Exception(sb.toString());
+		}
 	}
-
-
-
 }

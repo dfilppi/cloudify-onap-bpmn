@@ -18,33 +18,54 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import org.camunda.bpm.engine.delegate.DelegateExecution;
-import org.camunda.bpm.engine.delegate.JavaDelegate;
 import org.onap.so.cloudify.client.APIV31;
 import org.onap.so.cloudify.client.APIV31Impl;
 import org.onap.so.cloudify.client.DeploymentV31;
-import org.onap.so.cloudify.client.ExecutionV31;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Implements a simple synchronous blueprint installation. 
+ *
+ * 
+ * @author dewayne
+ *
+ */
 public class CloudifyInstallBlueprintDelegate extends AbstractJavaDelegate {
 	private static Logger log = LoggerFactory.getLogger(CloudifyInstallBlueprintDelegate.class);
 
 	// limitation: only archives with blueprint.yaml will work
-	private final static String MAIN_YAML = "blueprint.yaml";
+	private final static String INP_BLUEPRINT_KEY = "InputCfy_blueprint";
+	private final static String INP_CREDENTIALS_KEY = "InputCfy_credentials";
+	private final static String INP_BLUEPRINT_YAML_KEY = "InputCfy_blueprint_yaml";
+	private final static String INP_BLUEPRINT_NAME_KEY = "InputCfy_blueprint_name";
+	private final static String INP_DPMT_INPUTS_KEY = "InputCfy_deployment_inputs";
 	private final static String INSTALL_WF = "install";
+	private final static String DEFAULT_BP_FILENAME = "blueprint.yaml";
 
-	public static void main(String[] args) throws Exception {
-		CloudifyInstallBlueprintDelegate a = new CloudifyInstallBlueprintDelegate();
-		a.execute(null);
-	}
-
+	
+	/**
+	 * Performs a simple blueprint installation.  That means:
+	 * - single blueprint YAML file
+	 * - user/password authorization
+	 * - the deployment name in Cloudify will be the same as the blueprint name
+	 * - the blueprint will have tenant visibility
+	 */
 	public void execute(DelegateExecution execution) throws Exception {
-		APIV31Impl client = getCloudifyClient(execution);
+		checkInputs(execution);
+		
+		String blueprint = (String)execution.getVariable(INP_BLUEPRINT_KEY);
+		String blueprint_name = (String)execution.getVariable(INP_BLUEPRINT_NAME_KEY);
+		@SuppressWarnings("unchecked")
+		Map<String,String> credentials = (Map<String,String>)execution.getVariable(INP_CREDENTIALS_KEY);
+		Map<String,String> inputs = execution.hasVariable(INP_DPMT_INPUTS_KEY)?(Map<String,String>)execution.getVariable(INP_DPMT_INPUTS_KEY):new HashMap<>();
+		
 
+		APIV31Impl client = getCloudifyClient(credentials);
+		
 		// Upload blueprint
-		String bid = null;
 		try {
-			uploadBlueprint(execution, client);
+			uploadBlueprint(client, blueprint, blueprint_name);
 		} catch (Exception e) {
 			log.error("Cloudify blueprint upload failed: " + e.getMessage());
 			throw e;
@@ -53,7 +74,7 @@ public class CloudifyInstallBlueprintDelegate extends AbstractJavaDelegate {
 		// Create deployment
 		String did = null;
 		try {
-			did = createDeployment(execution, client, bid);
+			did = createDeployment(client, blueprint_name, inputs);
 		} catch (Exception e) {
 			log.error("Cloudify deployment creation failed: " + e.getMessage());
 			throw e;
@@ -67,35 +88,74 @@ public class CloudifyInstallBlueprintDelegate extends AbstractJavaDelegate {
 			throw e;
 		}
 	}
+	
+	/******************************************************************
+	 * PRIVATE METHODS
+	 ******************************************************************/
 
-
-	// TODO: deployment and blueprint names must be derived from request
-	private String createDeployment(DelegateExecution execution, APIV31Impl client, String bid) {
-		DeploymentV31 deployment = client.createDeployment("test", "test", new HashMap<String, String>(), false, false,
-				APIV31.Visibility.TENANT);
-		return deployment.getDeployment_id();
-	}
-
-	private APIV31Impl getCloudifyClient(DelegateExecution execution) {
-		Map<String, String> creds = getCredentials(execution);
-		APIV31Impl client = APIV31Impl.create(creds.get("tenant"), creds.get("username"), creds.get("password"),
-				creds.get("url"));
-		return client;
+	private void checkInputs(DelegateExecution execution) throws Exception{
+		
+		StringBuilder sb = new StringBuilder();
+		if(!execution.hasVariable(INP_BLUEPRINT_KEY)) {
+			sb.append("required input not supplied: "+INP_BLUEPRINT_KEY);
+		}
+		if(!execution.hasVariable(INP_CREDENTIALS_KEY)) {
+			sb.append("required input not supplied: "+INP_CREDENTIALS_KEY);
+		}
+		else {
+			Map<String,String> creds = (Map<String,String>)execution.getVariable(INP_CREDENTIALS_KEY);
+			if(!creds.containsKey("url")) {
+				sb.append("required credentials entry not supplied: url");
+			}
+			if(!creds.containsKey("username")) {
+				sb.append("required credentials entry not supplied: username");
+			}
+			if(!creds.containsKey("password")) {
+				sb.append("required credentials entry not supplied: password");
+			}
+			if(!creds.containsKey("tenant")) {
+				sb.append("required credentials entry not supplied: tenant");
+			}
+		}
+		if(!execution.hasVariable(INP_CREDENTIALS_KEY)) {
+			sb.append("required input not supplied: "+INP_CREDENTIALS_KEY);
+		}
+		if(!execution.hasVariable(INP_BLUEPRINT_NAME_KEY)) {
+			sb.append("required input not supplied: "+INP_BLUEPRINT_NAME_KEY);
+		}
+		if(sb.length()>0) {
+			throw new Exception(sb.toString());
+		}
 	}
 
 	/**
-	 * Suck in an archive and push it to Cloudify
+	 * Create a Cloudify deployment with reasonable defaults
+	 * 
+	 * @param client the Cloudify client instance
+	 * @param bid the blueprint id
+	 * @param inputs the inputs if any
+	 * @return the deployment id
+	 */
+	private String createDeployment(APIV31Impl client, String bid, Map<String,String> inputs) {
+		log.info("creating deployment: "+ bid);
+		DeploymentV31 deployment = client.createDeployment(bid, bid, inputs,
+				false, false, APIV31.Visibility.TENANT);
+		return deployment.getDeployment_id();
+	}
+
+
+	/**
+	 * Create an archive and push it to Cloudify
 	 * 
 	 * @param execution
 	 * @param client
+	 * @param blueprint the actual blueprint yaml
+	 * @param the
 	 * @throws Exception
 	 */
-	private void uploadBlueprint(DelegateExecution execution, APIV31Impl client) throws Exception {
-		// client.uploadBlueprint(blueprint_id, main_yaml_filename, visibility,
-		// archive);
+	private void uploadBlueprint(APIV31Impl client, String blueprint,
+			String blueprint_name) throws Exception {
 
-		// Get blueprint from database
-		String blueprint = getBlueprint(execution, client);
 		// Create archive
 		File archive = this.createBlueprintArchive(blueprint);
 
@@ -107,28 +167,11 @@ public class CloudifyInstallBlueprintDelegate extends AbstractJavaDelegate {
 			fis.read(data);
 		} finally {
 			fis.close();
+			archive.delete();
 		}
-		// TODO blueprint name should be derived from request
-		client.uploadBlueprint("test", MAIN_YAML, APIV31.Visibility.TENANT, data);
-	}
 
-	/**
-	 * Get blueprint from database. Single file. TODO THIS IS A STUB, FINISH
-	 * 
-	 * @param execution
-	 * @param client
-	 * @return
-	 */
-	private String getBlueprint(DelegateExecution execution, APIV31Impl client) {
-		// There no generic artifact storage in the database, so we
-		// use position held for HEAT templates
-		// TODO
+		client.uploadBlueprint(blueprint_name, DEFAULT_BP_FILENAME, APIV31.Visibility.TENANT, data);
 
-		String blueprint = "tosca_definitions_version: cloudify_dsl_1_3\n" + "imports:\n"
-				+ "  - http://www.getcloudify.org/spec/cloudify/4.5/types.yaml\n" + "node_templates:\n" + "  node:\n"
-				+ "    type: cloudify.nodes.Root\n";
-
-		return blueprint;
 	}
 
 	/**
@@ -170,9 +213,9 @@ public class CloudifyInstallBlueprintDelegate extends AbstractJavaDelegate {
 	 * 
 	 * @param dirname directory to zip
 	 * @return A File object pointing to the zip
-	 * @throws Exception
+	 * @throws IOException 
 	 */
-	private File createSimpleZipFile(String dirname) throws Exception {
+	private File createSimpleZipFile(String dirname) throws IOException{
 		final Path sourceDir = Paths.get(dirname);
 		String zipFileName = dirname.concat(".zip");
 		final ZipOutputStream outputStream = new ZipOutputStream(new FileOutputStream(zipFileName));
