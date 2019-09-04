@@ -4,12 +4,12 @@
     <bpmn:startEvent id="StartEvent_1">
       <bpmn:outgoing>SequenceFlow_1hthl3d</bpmn:outgoing>
     </bpmn:startEvent>
-    <bpmn:sequenceFlow id="SequenceFlow_1hthl3d" sourceRef="StartEvent_1" targetRef="Task_1pybgxr" />
+    <bpmn:sequenceFlow id="SequenceFlow_1hthl3d" sourceRef="StartEvent_1" targetRef="Task_uninstall" />
     <bpmn:endEvent id="EndEvent_1jd2116">
       <bpmn:incoming>SequenceFlow_07sw5fp</bpmn:incoming>
     </bpmn:endEvent>
-    <bpmn:sequenceFlow id="SequenceFlow_07sw5fp" sourceRef="Task_1pybgxr" targetRef="EndEvent_1jd2116" />
-    <bpmn:serviceTask id="Task_1pybgxr" name="uninstall blueprint" camunda:class="co.cloudify.bpmn.CloudifyUninstallBlueprintDelegate">
+    <bpmn:sequenceFlow id="SequenceFlow_07sw5fp" sourceRef="Task_uninstall" targetRef="EndEvent_1jd2116" />
+    <bpmn:serviceTask id="Task_uninstall" name="uninstall blueprint" camunda:class="co.cloudify.bpmn.CloudifyUninstallBlueprintDelegate">
       <bpmn:extensionElements>
         <camunda:inputOutput>
           <camunda:inputParameter name="InputCfy_credentials">
@@ -45,7 +45,7 @@
         <di:waypoint x="380" y="121" />
         <di:waypoint x="432" y="121" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNShape id="ServiceTask_03mxak1_di" bpmnElement="Task_1pybgxr">
+      <bpmndi:BPMNShape id="ServiceTask_03mxak1_di" bpmnElement="Task_uninstall">
         <dc:Bounds x="280" y="81" width="100" height="80" />
       </bpmndi:BPMNShape>
     </bpmndi:BPMNPlane>
