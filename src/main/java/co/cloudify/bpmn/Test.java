@@ -21,7 +21,8 @@ public class Test {
 		/*Logger l = (Logger)LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
 		l.setLevel(ch.qos.logback.classic.Level.DEBUG);*/
 		
-	    SpringApplication.run(Test.class, args);		
+	    SpringApplication.run(Test.class, args);
+		
 	}
 
 	@EventListener

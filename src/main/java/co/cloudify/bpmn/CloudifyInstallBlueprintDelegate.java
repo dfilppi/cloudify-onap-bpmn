@@ -82,7 +82,7 @@ public class CloudifyInstallBlueprintDelegate extends AbstractJavaDelegate {
 
 		// Run install workflow
 		try {
-			runWorkflow(INSTALL_WF, execution, client, did);
+			runWorkflow(INSTALL_WF, execution, client, did, null);
 		} catch (Exception e) {
 			log.error("Cloudify install workflow failed: " + e.getMessage());
 			throw e;
@@ -140,7 +140,7 @@ public class CloudifyInstallBlueprintDelegate extends AbstractJavaDelegate {
 		log.info("creating deployment: "+ bid);
 		DeploymentV31 deployment = client.createDeployment(bid, bid, inputs,
 				false, false, APIV31.Visibility.TENANT);
-		return deployment.getDeployment_id();
+		return bid;
 	}
 
 
@@ -155,6 +155,7 @@ public class CloudifyInstallBlueprintDelegate extends AbstractJavaDelegate {
 	 */
 	private void uploadBlueprint(APIV31Impl client, String blueprint,
 			String blueprint_name) throws Exception {
+		log.info("uploading blueprint '"+blueprint_name+"'");
 
 		// Create archive
 		File archive = this.createBlueprintArchive(blueprint);

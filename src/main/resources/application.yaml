@@ -17,4 +17,6 @@ camunda:
     metrics:
       enabled: false
       db-reporter-activate: false
+    filter:
+      create: All tasks
 

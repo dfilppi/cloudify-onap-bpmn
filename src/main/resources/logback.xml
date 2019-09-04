@@ -9,13 +9,15 @@
   </appender>
 
   <!-- camunda -->
-  <logger name="org.camunda" level="debug" />
-
+  <logger name="org.camunda" level="info" />
+  <logger name="co.cloudify.bpmn" level="debug" additivity="false" >
+    <appender-ref ref="STDOUT"/>
+  </logger>
   <!-- common dependencies -->
   <logger name="javax.activation" level="info" />
   <logger name="org.springframework" level="info" />
 
-  <root level="debug">
+  <root level="error">
     <appender-ref ref="STDOUT" />
   </root>
 
